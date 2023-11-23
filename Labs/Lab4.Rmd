@@ -1,0 +1,163 @@
+---
+title: "Lab 4"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Andrew Manrriquez
+
+**This assignment is due by the end of the day Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `starwars` which comes with `dplyr`. Let's first load the `tidyverse` package that contains both `dplyr` and `ggplot2` which we will need today:
+
+```{r, warning=FALSE}
+# If working on your own computer, remember to install new packages with install.packages("name") in the console
+library(tidyverse)
+```
+
+Then let's save the dataset in our environment and take a quick look at it:
+
+```{r}
+# Upload data from GitHub
+starwars <- as_tibble(starwars)
+
+# Take a quick look with glimpse() 
+glimpse(starwars)
+
+# or learn more by running ?starwars in the console
+```
+
+This dataset contains information about Starwars characters: name, height, mass, hair_color, skin_color, eye_color, birth_year, sex, gender, homeworld, species, films, vehicles, starships.
+
+The goal of the lab is to investigate some characteristics of the Starwars characters using `dplyr`.
+
+------------------------------------------------------------------------
+
+### Question 1: (3 pts)
+
+Using `dplyr` core functions, create a new variable in the data frame to calculate Body Mass Index (BMI). BMI is for a height in **meters** and a mass in **kilograms**:
+
+> BMI = mass / height\^2.
+
+Only display the top 5 observations for BMI and just keep relevant information (name, species, height, mass). Who has the highest BMI in the dataset?
+
+```{r}
+# Using dplyr to create a new variable BMI
+starwars <- starwars %>% 
+  mutate(BMI = mass/((height/100))^2)
+# View top 5 BMIs
+starwars %>% select(name, species, height, mass, BMI) %>% top_n(5, BMI)
+```
+
+**Jabba Desilijic Tiure has the highest BMI, at 443 kg/m^2^.**
+
+------------------------------------------------------------------------
+
+### Question 2: (3 pts)
+
+Using `dplyr` core functions, find how many characters' names there are per species. Which species contain the two largest numbers of character names?
+
+```{r}
+# Finding how many characters names there are per species
+starwars %>%
+  group_by(species) %>%
+  summarise(name_count = n()) %>%
+  arrange(desc(name_count)) %>%
+  top_n(2, name_count)
+```
+
+**The Human species contains 35 character names and the Droid species contains 6 character names.**
+
+------------------------------------------------------------------------
+
+### Question 3: (3 pts)
+
+Using `dplyr` core functions and `ggplot`, compare the distributions of BMI between the two species found in the previous question using boxplots and simultaneously showing the data with `geom_point()`. Which of the two species seem to have the highest BMI on average? Is that reasonable to make such a comparison?
+
+```{r}
+# Filtered data for only humans and droids
+filtered_data <- starwars %>% filter(species %in% c("Human", "Droid"))
+
+# Comparing distrubution of BMI
+filtered_data %>% ggplot(aes(x = species, y = BMI, fill = species)) + 
+  geom_boxplot(color = "black") + 
+  geom_point(color = "black", size = 1.7) + 
+  scale_fill_brewer(type = "qual", palette = "Accent", direction = 1) + 
+  labs(title = "Distribution of BMI Between Species", x = "Species", y = "BMI (kg/m^2)") + 
+  theme_minimal() + 
+  theme(legend.position = "none")
+
+```
+
+**The Droid species appears to the have the highest average BMI. There are only six data points for Droids while Humans have thirty-five points. The sample size for droids is too small to make a proper comparison.**
+
+------------------------------------------------------------------------
+
+### Question 4: (3 pts)
+
+Let's look at who has no hair across planets!
+
+First, remove the NAs from hair_color. *Hint: use `!` and `is.na()` in a `dplyr` core function.*
+
+Second, find the mean of a logical vector inside `summarize()` to get the proportion of bald characters in **each** homeworld. Call the resulting proportion `pBald`. *Hint: `hair_color == "none"` designates bald characters.*
+
+How many home worlds only host bald characters?
+
+```{r}
+# Remove NAs and find proprortion of bald characters in each homeworld
+bald_proportion <- starwars %>%
+  filter(!is.na(hair_color)) %>%
+  group_by(homeworld) %>%
+  summarise(pBald = mean(hair_color == "none"))
+
+# Count the numner of home worlds with only bald characters
+bald_proportion %>% filter(pBald == 1) %>% 
+  count()
+```
+
+**There are 26 home worlds that have only bald characters.**
+
+------------------------------------------------------------------------
+
+### Question 5: (4 pts)
+
+Choose one of the research questions proposed by your group members in the Pre-Lab Quiz. Answer your research questions using at least 2 of the 6 `dplyr` core functions and with a `ggplot` visualization. Include a headline to your visualization and interpret what you see!
+
+```{r}
+# your code goes below (make sure to edit comment)
+filter_sex <- starwars %>% filter(sex %in% c("female", "male", "hermaphroditic", "none")) 
+
+filter_sex %>% 
+  ggplot(aes(x = sex, y = height, fill = sex)) + 
+  geom_boxplot() + 
+  labs(title = "Distrubition of Heights Between Sex", x = "Sex", y = "Height (cm)", subtitle = "'None' in This Visual Stands for Droids") + 
+  theme(legend.position = "none")
+```
+
+**Based on the box plots, males have the highest mean for height and the widest distribution of data points. Droids have the lowest mean for height and the greatest IQR. Hermaphroditic only has one data point so it has the least amount of distribution; with only one data point it is not an accurate representation of heights among this sex.**
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+What did you expect the answer to this research question to be before you looked at the data? How does the result compare to what you expected?
+
+**We didn't think that there would be a relationship between height and sex. The data suggests that there is a small relationship between sexes with males having the highest mean, followed by females then droids but there is nothing definitive due to the sample size being small.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

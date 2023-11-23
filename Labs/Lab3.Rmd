@@ -1,0 +1,145 @@
+---
+title: "Lab 3"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+
+
+### Andrew Manrriquez
+
+**This assignment is due by the end of the day Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `netflix` that you will download from `GitHub.` Let's first load the packages we will need to complete this lab:
+
+```{r, warning=FALSE}
+# If working on your own computer, remember to install new packages with install.packages("name") in the console
+library(tidyverse) 
+```
+
+Then let's download our dataset using `read_csv()` (you must be connected to the Internet to do this):
+
+```{r}
+# Upload data from GitHub
+netflix <- read_csv("https://raw.githubusercontent.com/rdpeng/stat322E_public/main/data/netflix.csv")
+```
+
+This dataset contains information about Netflix movies: title, genre, year of release, running time (in minutes), IMDB score, and language.
+
+```{r}
+# Take a quick look with tail() which shows the last 6 observations
+tail(netflix)
+```
+
+The goal of the lab is to investigate how some characteristics of a movie affects its IMDB score, focusing on some genres.
+
+------------------------------------------------------------------------
+
+### Question 1: (3 pts)
+
+Explore the `Genre` variable with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* What are the most/least common genres?
+
+```{r}
+# Create a histogram
+netflix %>% ggplot(aes(x = Genre)) + geom_bar(fill = "#5579C6", color = "black", alpha = 0.8) + labs(title = "Histogram of Genres", x = "Genre", y = "Frequency") + theme_minimal() + coord_flip()
+```
+
+**The most common genre is documentaries and the least common genre is musicals.**
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+You will focus on a subset of genres: each group member selects a different genre. Filter the `netflix` dataset to only keep the genres you selected. Save the filtered dataset in your environment with a new name by assigning it to a new object. You will work with the filtered dataset for the next two questions.
+
+```{r}
+# Creating a new data set that is filtered for Documentary, Comedy, and Action
+filtered_data <- netflix %>% filter(Genre %in% c("Comedy", "Action", "Documentary"))
+```
+
+------------------------------------------------------------------------
+
+### Question 3: (4 pts)
+
+Using the filtered dataset from Question 2, explore the `IMDB` variable with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* Describe the shape, center, and spread of the distribution, including appropriate statistics. 
+
+```{r}
+# Creating a visualization of IMDB variable for new subset
+filtered_data %>% ggplot(aes(x = IMDB, fill = Genre)) + 
+  geom_histogram(binwidth = 0.3, color = "black", alpha = 0.8) + 
+  facet_wrap(vars(Genre)) + 
+  labs(title = "Distrubution of IMDB Ratings", x = "IMDB Rating", y = "Frequency") + 
+  theme_minimal()
+```
+
+**The distribution of IMDB ratings for documentaries and action is left-skewed and for comedies it is normally distributed. The center for the documentary histogram is approximately a 7 IMDB rating, for comedy and action it is approximately 6.**
+
+------------------------------------------------------------------------
+
+### Question 4: (3 pts)
+
+Working with the other members of your Lab group, investigate the relationship between `IMDB` and `Genre` with a `ggplot` visualization. *Make sure to add labels, you can also add some colors to make it prettier!* Does there seem to be a difference in IMDB across genres? Justify your answer by referring to your visualizations.
+
+```{r}
+# Make a boxplot to show relationship between IMDB and Genre
+filtered_data %>% ggplot(aes(x = Genre, y = IMDB, fill = Genre)) + 
+  geom_boxplot(alpha = 0.8) + 
+  labs(title = "Relationship Between IMDB and Genre", x = "Genre", y = "IMDB Rating") + 
+  theme_minimal()
+
+```
+
+**Documentaries have the highest mean IMDB rating. Action and Comedy have a similar IQR range meanwhile documentaries have a noticeably higher IQR range. The maximum and minimum IMDB rating for documentaries is noticeably higher than it is for comedies and action movies.**
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Using the complete dataset, consider what other characteristics may influence the IMDB score: select one of the other variables in the dataset. Write a research question to explore the relationship between the three variables. *For example, (create a question of your own, don't use this one!): How do genre and language affect IMDB score?*
+
+**How does the run time and genre affect IMDB scores?**
+
+------------------------------------------------------------------------
+
+### Question 6: (3 pts)
+
+Create a visualization to answer your research question. Include a catchy headline to your viz and interpret what you see! *There are many ways to represent 3 variables: using different colors, shapes, size, faceting, ...* 
+
+```{r}
+# Creating a visualization for Year, IMDB Rating and Genre
+netflix %>% ggplot(aes(x = Runtime, y = IMDB)) + 
+  geom_point(alpha = 0.8, size = 2.5, color = "#5579C6") + 
+  facet_wrap(vars(Genre)) + 
+  geom_smooth(color = "black", method = "lm") +
+  scale_y_continuous(breaks = seq(0,10,1)) + 
+  labs(title = "Triple Crown: The Impact of Release Year & Genre on IMDB Ratings", x = "Run Time (mins)", y = "IMDB Rating", subtitle = "Source: Netflix Dataset from Github") + 
+  theme_minimal()
+```
+
+**Based on our plots there is no set relationship between run time, genres, and IMDB ratings. Some genres such as action, comedy, crime, documentary, drama, romance, science fiction, thriller, and variety shows have a positive relationship between run time and IMDb ratings. Animation and musicals appear to have a negative relationship between run time and IMDB ratings and horror has no relationship between run time and IMDB ratings.**
+
+------------------------------------------------------------------------
+
+### Question 7: (1 pt)
+
+How do the results of Questions 5 and 6 compare to what you answered in the Pre-Lab Quiz on which variables are related to IMDB score? Did the data match your expectations or not? If the data differed from your expectation, provide a sentence with a possible explanation for why the data differed from what you expected.
+
+
+**We inferred that there would be no relationship between run time, genre, and IMDB ratings but based on the results there is a small positive relationship with the majority of the genres.**
+
+------------------------------------------------------------------------
+
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!

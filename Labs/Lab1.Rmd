@@ -1,0 +1,142 @@
+---
+title: "Lab 1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options=list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Enter the names of the group members below: (2 pts)
+**Andrew**
+
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `faithful`. It contains information about eruptions of the Old Faithful geyser in Yellowstone National Park. The first few observations are listed below.
+
+```{r}
+library(dplyr)
+library(datasets)
+head(faithful)
+```
+
+### Question 1: (2 pts)
+
+How many rows are there in this dataset? How many columns? Try using the `glimpse()` function from the `tidyverse`. In which units are the variables reported? You will need more information about the dataset to answer that last question: run `?faithful` **in the console**. *Note: using `?` in your Markdown document might prevent you from knitting or will open the documentation in a new tab.*
+
+```{r}
+# Open package tidyverse
+library(tidyverse)
+# Using the glimpse function from tidyverse
+glimpse(faithful)
+```
+
+*There are 272 rows and 2 columns in the `faithful` data set. Looking at the format of the data set `faithful`, the variables are reported in minutes*
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+Using the function `summary()` for each variable, find the minimum, maximum, mean, and median values of each variable. Write a sentence to interpret the mean eruption duration and the mean waiting time. 
+
+```{r}
+# Using the function summary()
+summary(faithful)
+```
+
+*The average eruption time is 3.488 minutes and the average wait time till the next eruption is 70.9 minutes.*
+
+------------------------------------------------------------------------
+
+### Question 3: (2 pts)
+
+Create a histogram of each variable with the function `hist()`. (You can find the help page for `hist()` by calling `?hist` at the console.) Make sure to label axes (`xlab=`) and give a title to the graph (`main=`).
+
+```{r}
+# Histogram for Eruption Time
+hist(faithful$eruptions,
+     main = "Eruption Time (mins)",
+     xlab = "Minutes")
+# Histogram for Waiting Time
+hist(faithful$waiting,
+     main = "Waiting Time Till Next Eruption (mins)",
+     xlab = "Minutes")
+```
+
+------------------------------------------------------------------------
+
+### Question 4: (2 pts)
+
+Let's do some filtering and logical indexing. What does the code below do?
+
+NOTE: The %>% symbol is equivalent to the |> symbol for piping the output of functions to other functions.
+
+```{r, eval=FALSE}
+faithful %>%
+        filter(waiting > 60) 
+```
+
+*The code above, filters for rows that have a waiting time greater than 60 minutes.*
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Using filtering and logical indexing and the function `mean()`, find the mean of the variable `eruptions` when `waiting` is **less than or equal to** 1 hour and the mean of the variable `eruptions` when `waiting` is **more than** 1 hour. Compare the two means.
+
+```{r}
+# Filtering eruptions when waiting is less than or equal to 1 hour
+less_1 = faithful %>% filter(waiting<=60)
+# Calculate the mean
+mean(less_1$eruptions)
+# Filtering eruptions when waiting is more than 1 hour
+greater_1 = faithful %>% filter(waiting>60)
+# Calculate the mean
+mean(greater_1$eruptions)
+```
+
+*When the waiting time is less than or equal to one hour the mean eruption time is 2.005831 minutes. When the waiting time is greater than one hour the mean eruption time is 4.138587 minutes*
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+Create a scatter plot using the `plot()` function to explore how the waiting time might affect the eruption duration. Make sure to label axes (`xlab=`, `ylab=`) and give a title to the graph (`main=`). Briefly describe what you notice in this graph.
+
+```{r}
+# Creating a scatter plot
+plot(faithful$waiting, faithful$eruptions,
+     # Title
+     main = "Relationship Between Eruption and Waiting Time",
+     xlab = "Waiting Time (mins)",
+     ylab = "Eruption Duration (mins)")
+
+```
+
+*Based on the scatter plot as the waiting time increases the duration of the eruption increases in a positive relationship.*
+
+### Question 7: (2 pts)
+
+How does the scatter plot that you made in Question 6 compare to the one you selected in the pre-quiz? Does it look similar or different? If the plot looks different from what you selected in the pre-quiz, how would you explain the difference?
+
+*The scatter plot that was selected in the pre-quiz is similar to the scatter plot that was made in question 6. Both scatter plots had a positive relationship.*
+
+
+------------------------------------------------------------------------
+### Formatting: (4 pts)
+
+Knit your file! Into pdf directly or into html. 
+
+Is it working? If not, try to decipher the error message (look up the error message, consult websites such as [stackoverflow](https://stackoverflow.com/) or [crossvalidated](https://stats.stackexchange.com/)). 
+
+Once it knits in html, click on `Open in Browser` at the top left of the window pops out. Print your html file into pdf from your browser. Any issue? Ask your classmates or TA!

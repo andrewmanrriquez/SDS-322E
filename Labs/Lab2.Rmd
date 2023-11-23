@@ -1,0 +1,162 @@
+---
+title: "Lab 2"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  error = TRUE,
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Andrew Manrriquez
+
+**This assignment is due by the end of the lab. Only one student in the group submits a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+In this lab, you will explore the dataset `diamonds` contained in the package `ggplot2`. Let's first upload that package:
+
+```{r, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+```
+
+The dataset consists of prices and quality information from about 54,000 diamonds. The first few observations are listed below.
+
+```{r}
+# Viewing the data set diamonds
+diamonds
+```
+
+This dataset is very large so it's not possible to examine every observation. But you can take a random sample of 10 rows using the `sample_n()` function.
+
+```{r}
+# Taking 10 random samples from diamonds data set
+diamonds %>% sample_n(10)
+```
+
+Try taking a random sample of 15 rows from the dataset and check if anything seems out of the ordinary in those observations.
+
+```{r}
+# Taking 15 random samples from the diamonds data set
+diamonds %>% sample_n(15)
+```
+
+Here is a summary of the variables in the dataset.
+
+```{r}
+# Creating a summary of the diamonds data set
+summary(diamonds)
+```
+
+### Question 1: (1 pt)
+
+Save the dataset `diamonds` in the environment and name it using the initials of all team members in alphabetical order. *Remember that you can get more details about the dataset by running `?diamonds` in the console.*
+
+```{r}
+# Saving the data set diamonds under a new variable name
+ae <- diamonds
+
+```
+
+------------------------------------------------------------------------
+
+### Question 2: (4 pts)
+
+Use this template of a `ggplot` command to create a histogram of `price`:
+
+```{r}
+# Creating a histogram using ggplot
+ae %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram() + labs(x = "Price") + labs(title = "Histogram of Diamond Prices") + labs(y = "Frequency") + theme_minimal()
+```
+
+Use this template of a `base R` command to create a histogram of `price`:
+
+```{r}
+# Creating a histogram using base R
+hist(ae$price, xlab = "Price", main = "Histogram of Diamond Prices")  
+```
+
+Comparing the two histograms, how much greater is the largest value labeled on the x-axis in the `ggplot` histogram than the largest x-axis value labeled on the `base R` histogram?
+
+**The largest value labeled on the x-axis in the ggplot histogram is 20000, which is 50000 larger than the largest value for the base R histogram which is 15000.**
+
+------------------------------------------------------------------------
+
+### Question 3: (3 pts)
+
+Use this template of a `ggplot` command to create a bar graph of `clarity`:
+
+```{r}
+# Creating a bar graph using ggplot
+ae %>% 
+        ggplot(aes(x = clarity)) + 
+        geom_bar() + labs(x = "Clarity") + labs(title = "Bar Graph of Diamond Clarity") + labs(y = "Frequency") + theme_minimal()
+```
+
+Use this template of a `base R` command to create a bar graph of `clarity`:
+
+```{r}
+# Creating a bar graph using base R
+barplot(table(ae$clarity), xlab = "Clarity", ylab = "Frequency", main = "Bar Graph of Diamond Clarity")  
+```
+
+Using these plots, what is the most common category of `clarity`?
+
+**Based on the bar graphs created using ggplot and base R, the most common clarity is SI1.**
+
+------------------------------------------------------------------------
+
+### Question 4: (4 pts)
+
+An important parameter for histograms is the number of bars that you use in the plot. This is set using the `bins` argument to `geom_histogram()`. The default is `bins = 30`. What happens if you use just 5 bins for the histogram of `price`? Or what about using 45? How do the histogram look different from each other?
+
+```{r}
+# Creating a histogram with 5 bins
+ae %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram(bins = 5) + labs(x = "Price") + labs(title = "Histogram of Prices") + labs(y = "Frequency") + theme_minimal()
+
+# Creating a histogram with 45 bins
+ae %>% 
+        ggplot(aes(x = price)) + 
+        geom_histogram(bins = 45) + labs(x = "Price") + labs(title = "Histogram of Prices") + labs(y = "Frequency") + theme_minimal()
+```
+
+**When we set the bin argument to 5 the histogram only displays 5 bins and when it is set to 45 bins there only 45 bins in the histogram. The histogram with 45 bins has the prices distributed much more than the histogram with 5 bins.**
+
+------------------------------------------------------------------------
+
+### Question 5: (3 pts)
+
+We actually discussed a function in lecture that can create a graph for each category of a variable using `ggplot`. Using `ggplot` with that function, create a histogram of price for each category of clarity.
+
+```{r}
+# your code goes below (make sure to edit comment)
+ae %>% ggplot(aes(x = price)) + geom_histogram() + facet_wrap(vars(clarity)) + labs(x = "Price") + labs(y = "Frequency") + labs(title = "Price Frequencies by Clarity") + theme_minimal()
+```
+
+------------------------------------------------------------------------
+
+### Question 6: (3 pts)
+
+Choose one question about that the data that you want to investigate (could be the one from the pre-Lab Quiz) and make a plot that addresses that question. How would you interpret the results of the plot?
+
+```{r}
+# Creating a scatter plot
+ae %>% ggplot(aes(x = carat, y = price)) + geom_point() + labs(x = "Carat") + labs(y = "Price") + labs(title = "Relationship Between Carat Size and Price")
+```
+
+**Based on the plot we see a positive relationship, which indicates that as the carat size increases the price increases as well. There are other variables, that are not represented above, that play a role in the price of a diamond: color, clarity, etc.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!
