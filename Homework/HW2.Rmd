@@ -1,0 +1,234 @@
+---
+title: "HW 2"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F, R.options=list(max.print=100))
+
+# Edit the file starting below
+```
+
+## Andrew Manrriquez (ajm7246)
+
+**This homework is due on September 15, 2023 by 11:59pm. You will submit a pdf file on Gradescope.**
+
+*For all questions, include the R code that you used to find your answer (show R chunk and outputs). Answers without supporting code will not receive credit (unless no code was required). Outputs without comments will not receive credit either: Write full sentences to describe your findings.*
+
+------------------------------------------------------------------------
+
+### Question 1: (2 pts)
+
+##### The dataset `ChickWeight` contains information about the weights (in grams) of chicks on four different diets over time (measured at 2-day intervals) as the result of an experiment. The first few observations are listed below.
+
+```{r}
+# Save dataset as a dataframe
+ChickWeight <- as.data.frame(ChickWeight)
+
+# Visuaize the first ten rows of the dataset
+head(ChickWeight, 10)
+```
+
+Use some combination of `table()` and `length()` to answer the following questions: 
+
+- How many distinct chicks are there?  
+- How many distinct time points?  
+- How many distinct diet conditions?  
+- How many chicks per diet condition?  
+
+```{r}
+# Distinct chicks?
+length(unique(ChickWeight$Chick))
+# Distinct time points?
+length(unique(ChickWeight$Time))
+# Distinct diet conditions?
+length(unique(ChickWeight$Diet))
+# How many chicks per diet?
+table(ChickWeight$Diet)
+```
+
+**There are 50 distinct chicks, 12 distinct time points (days), 4 distinct diets. For diet 1 there are 220 chicks, diet 2 are 120 chicks, diet 3 are 120 chicks, and for diet 4 there are 118 chicks.**
+
+------------------------------------------------------------------------
+
+### Question 2: (2 pts)
+
+##### Using the `ggplot2` package, create a simple scatterplot showing chick `weight` (on the y-axis) as a function of `Time`. Label the axes including the units of the variables and give the plot a title. How does chick `weight` change over `Time`?
+
+```{r}
+# Load the tidyverse (including ggplot2)
+library(tidyverse)
+library(ggplot2)
+
+# Creating a scatterplot
+ChickWeight %>% ggplot(aes(x = Time, y = weight)) + 
+        geom_point(color = "#5579C6") + 
+        labs(title = "Chick Weight Over Time", x = "Time (Days Since Birth)", y = "Weight (gm)") + 
+        theme_minimal()
+```
+
+**The weight of a chick increases as time increases, indicative of a positive relationship between the two variables.**
+
+------------------------------------------------------------------------
+
+### Question 3: (2 pts)
+
+##### Building upon the previous plot, map `Chick` to an aesthetic that assigns a color to each chick’s data points. Add lines that connect each chick’s points together with `geom_line()`. Finally, remove the legend. Do all chicks seem to gain weight in the same manner? Why/Why not?
+
+```{r}
+# Reordered Chicks in numerical order
+ChickWeight <- ChickWeight %>% 
+        mutate(Chick = factor(Chick, 
+                             levels = c("1", "2", "3", "4", "5", 
+                                        "6", "7", "8", "9", "10", 
+                                        "11", "12", "13", "14", "15", "16", "17", "18", "19",
+                                        "20", "21","22","23","24", "25", "26", "27",
+                                        "28","29","30","31","32","33","34","35","36","37",
+                                        "38","39","40","41","42","43","44","45","46","47","48","49","50")))
+
+# Creating a scatter plot with different colors for each chick
+ChickWeight %>% ggplot(aes(x = Time, y = weight)) + 
+        geom_point(aes(color = Chick)) + 
+        geom_line(aes(color = Chick, linetype = Chick)) + 
+        labs(title = "Chick Weight Over Time", x = "Time (Days Since Birth)", y = "Weight (gm)") +
+        theme(legend.position = "none")
+ 
+```
+
+**Every chick seems to gain weight in a different manner. Reasoning's behind this might be that the chicks might have different metabolisms, eat more or less than other chicks, or are more/less active.**
+
+------------------------------------------------------------------------
+
+### Question 4: (2 pts)
+
+Continue modifying the same plot by 
+
+* removing the color from the points only
+* make all of the points white 
+* leave the lines colored by chick
+* Put the points *on top of* the lines 
+
+On which day was the last value of the chicks' weight recorded?
+
+```{r}
+# Modifying the plot
+ChickWeight %>% ggplot(aes(x = Time, y = weight)) + 
+        geom_line(aes(color = Chick, linetype = Chick)) + 
+        geom_point(color = "white", size = 2.5) + 
+        labs(title = "Chick Weight Over Time", x = "Time (Days Since Birth)", y = "Weight (gm)") +
+        theme_dark() + 
+        theme(legend.position = "none") + 
+        scale_x_continuous(breaks = seq(0,25,1))
+
+```
+
+**On the 21st day the last value of the chicks' weight was recorded.**
+
+------------------------------------------------------------------------
+
+### Question 5: (2 pts)
+
+Now, facet this plot by diet. Can you tell from this new plot which diet results in greater weight? Explain.
+
+```{r}
+# Facet wrapping the plot by diet
+ChickWeight %>% ggplot(aes(x = Time, y = weight)) + 
+        geom_line(aes(color = Chick, linetype = Chick)) + 
+        geom_point(color = "white", size = 2) + 
+        facet_wrap(vars(Diet)) +
+        labs(title = "Chick Weight Over Time", x = "Time (Days Since Birth)", y = "Weight (gm)") +
+        theme_dark() + 
+        theme(legend.position = "none") + 
+        scale_x_continuous(breaks = seq(0,25,1))
+```
+
+**From the facet plots it is hard to tell which diet results in greater weight. This is because `geom_line` only creates 13 different lines and we have 50 chicks to keep track of.**
+
+------------------------------------------------------------------------
+
+### Question 6: (2 pts)
+
+Go back to your plot from question 2 and fit a *linear regression line* (using `lm`) to the chicks in each diet with `geom_smooth()`. There should be 4 separate regression lines, one for each diet, each a separate color. Can you see more clearly which diet results in greater weight? Explain.
+
+```{r}
+# Creating a scatterplot
+ChickWeight %>% ggplot(aes(x = Time, y = weight)) + 
+        geom_point(color = "#5579C6") + 
+        geom_smooth(aes(color = Diet)) +
+        labs(title = "Chick Weight Over Time", x = "Time (Days Since Birth)", y = "Weight (gm)") + 
+        theme_minimal()
+```
+
+**Using `geom_smooth` it makes it more clear to see which diet results in a greater weight. It is easier to see because each diet is a different color so it is easy to distinguish.**
+
+------------------------------------------------------------------------
+
+### Question 7: (2 pts)
+
+A scatterplot might not be the best way to visualize this data: it calls attention to the relationship between weight and time, but it can be hard to see the differences between diets. A more traditional approach for exploring the effect of diet would be to construct a barplot representing group means with standard error bars showing +/- 1 standard error.
+
+Create a plot using `geom_bar()` where each bar's height corresponds to the average chick weight for each of the four diet conditions. Rename the y-axis to include units (e.g., with scale_y_continuous(`name=`...)) and make the major tick marks go from 0 to 150 by 25 (e.g., with scale_y_continuous(`breaks=`...)). Which diet has the highest mean `weight`? 
+
+```{r}
+# Create a bar plot 
+ChickWeight %>% ggplot(aes(x = Diet, y = weight, fill = Diet)) + 
+        geom_bar(stat = "summary", fun = "mean", alpha = 0.8) +
+        scale_y_continuous(name = "Average Chick Weight (gm)", breaks = seq(0,150,25)) + 
+        labs(title = "Average Weight of Chicks Based on Diets", x = "Diet", y = "Average Chick Weight (gm)")
+```
+
+**Based on the bar plot diet 3 has the highest mean weight.**
+
+------------------------------------------------------------------------
+
+### Question 8: (2 pts)
+
+Add error bars showing + or - 1 SE using `geom_errorbar(stat = "summary")`. Make the error-bars skinnier by adding a `width =`**0.5** argument. Color the bars (not the error bars, but the barplot bars) by diet and change from the default color scheme using a `scale_fill_` or a `scale_color_`. diet seems to have the most variation in `weight`? The least variation?
+
+```{r}
+library(RColorBrewer)
+# Creating a bar plot with error bars
+ChickWeight %>% ggplot(aes(x = Diet, y = weight, fill = Diet)) + 
+        geom_bar(stat = "summary", fun = "mean", alpha = 0.8) +
+        scale_fill_brewer(type = "seq", palette = "RdBu", direction = 1) + 
+        geom_errorbar(stat = "summary", width = 0.5, fun.data = "mean_se") +
+        scale_y_continuous(name = "Average Chick Weight (gm)", breaks = seq(0,150,25)) + 
+        theme_minimal() + 
+        labs(title = "Barplot with Error Bars By Diet", x = "Diet", y = "Average Chick Weight (gm)") 
+```
+
+**Diet 3 has the most variation in weight and diet 1 has the least variation in weight.**
+
+------------------------------------------------------------------------
+
+### Question 9: (2 pts)
+
+Take your code from question 8 and replace `geom_bar()` with `geom_point()`. Remove the `breaks=` argument from `scale_y_continuous`. Make the points larger and color them all red. Put them *on top of* the error bars. Does the mean chick weight seem to differ based on the diet? *I am not asking to conduct hypothesis testing but informally state if they seem to differ and if so, how.*
+
+```{r}
+## add your code here (and edit this comment)
+ChickWeight %>% ggplot(aes(x = Diet, y = weight)) + 
+        geom_errorbar(stat = "summary", width = 0.5, fun.data = "mean_se") +
+        geom_point(stat = "summary", fun = "mean", size = 10, aes(color = "red")) +
+        theme_minimal() +
+        scale_fill_brewer(type = "seq", palette = "RdBu", direction = 1) + 
+        theme(legend.position = "none") + 
+        scale_y_continuous(name = "Average Chick Weight (gm)") + 
+        labs(title = "Average Weight of Chicks Based on Diets", x = "Diet", y = "Average Chick Weight (gm)")
+```
+
+**When using `geom_point` instead of `geom_bar` there is still a difference in the mean chick weight for each diet. Diet 3 still has the highest mean weight and Diet 1 still has the lowest mean weight.**
+
+------------------------------------------------------------------------
+
+### Formatting: (2 pts)
+
+##### Comment your code, write full sentences, and knit your file!
+
+------------------------------------------------------------------------

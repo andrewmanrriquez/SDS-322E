@@ -1,0 +1,231 @@
+---
+title: "HW 7"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+```
+
+### Andrew Manrriquez (ajm7246)
+
+**You will submit this homework assignment as a pdf file on Gradescope.**
+
+*For all questions, include the R commands/functions that you used to find your answer (show R chunk). Answers without supporting code will not receive credit. Write full sentences to describe your findings.*
+
+We will use the packages `tidyverse` and `plotROC` for this assignment.
+
+```{r, message = FALSE}
+# Load packages
+library(tidyverse)
+library(plotROC)
+library(pROC)
+```
+
+------------------------------------------------------------------------
+
+## Question 1: (4 pts)
+
+We will use the `pokemon` dataset for this assignment:
+
+```{r}
+# Upload data from GitHub
+pokemon <- read_csv("https://raw.githubusercontent.com/laylaguyot/datasets/main//pokemon.csv")
+
+# Take a look 
+head(pokemon)
+```
+
+Recode the variable `Legendary`, taking a value of 0 if a pokemon is not legendary and a value of 1 if it is. Save the resulting data as `my_pokemon`.
+
+```{r}
+# your code goes below (make sure to edit comment)
+my_pokemon <- pokemon
+my_pokemon$Legendary <- ifelse(pokemon$Legendary == TRUE, 1, 0)
+```
+
+Visualize the linear relationship between `Attack` and `HP` (hit points) for each legendary status. *Hint: consider the binary variable as a factor using `as.factor()`.* Do `Attack` and `HP` seem to predict Legendary status? Comment with what you see in the visualization.
+
+```{r}
+# Load proper library
+library(ggplot2)
+
+# Create a scatter plot
+ggplot(my_pokemon, aes(x = Attack, y = HP, color = as.factor(Legendary))) +
+  geom_point() +
+  labs(x = "Attack", y = "HP") +
+  theme_minimal()
+
+```
+
+**Attack and HP do not seem to necessarily predict whether a pokemon is legendary or not.**
+
+------------------------------------------------------------------------
+
+## Question 2: (2 pt)
+
+Let's predict `Legendary` status using a linear regression model with `Attack` and `HP` in `my_pokemon`. Fit this model, call it `pokemon_lin`, and write its equation.
+
+```{r}
+# Fit a linear regression model
+pokemon_lin <- lm(Legendary ~ Attack + HP, data = my_pokemon)
+
+# View the summary of the model
+summary(pokemon_lin)
+
+```
+
+**The equation is Legendary = B~0~ + B~1~ (Attack) + B~2~ (HP). The model indicates that for every one unit increase in Attack the odds of being legendary increase by a factor of e^0.0023563 and for every one unit increase in HP the odds of being legendary increase by a factor of e^0.0016644.**
+
+------------------------------------------------------------------------
+
+## Question 3: (3 pts)
+
+Choose a pokemon whose name starts with the same letter as yours. Take a look at its stats and, using the equation of your model from the previous question, predict the legendary status of this pokemon, "by hand" (multiplying the predictors with the estimated coefficients):
+
+```{r}
+# Coefficients from the model
+intercept <- -0.2201775
+coeff_attack <- 0.0023563
+coeff_hp <- 0.0016644
+
+# Stats for Alakazam
+attack_alakazam <- 55  
+hp_alakazam <- 55     
+
+# Calculate the linear prediction
+linear_prediction <- intercept + (coeff_attack * attack_alakazam) + (coeff_hp * hp_alakazam)
+
+# The prediction is:
+linear_prediction
+
+```
+
+Check your answer by using `predict()` with the argument `newdata =`:
+
+```{r}
+# Create a data frame for Alakazam's stats
+alakazam_stats <- data.frame(Attack = attack_alakazam, HP = hp_alakazam)
+
+# Predict the legendary status for Alakazam
+prediction_alakazam <- predict(pokemon_lin, newdata = alakazam_stats, type = "response")
+
+# Is Alakazam predicted to be legendary?
+prediction_alakazam
+
+```
+
+Was your pokemon predicted to be legendary (i.e. is the prediction close to 0 or 1)? Why or why not? Does it match character's Legendary status in dataset?
+
+**Alakazm was predicted to not be legendary due to the value calculated being very close to 0. This matches Alakazam's legendary status.**
+
+------------------------------------------------------------------------
+
+## Question 4: (2 pts)
+
+We can measure how far off our predictions are from reality with residuals. Use `resid()` to find the residuals of each pokemon in the dataset then find the sum of all residuals. What is the sum of all the residuals. Why does it make sense?
+
+```{r}
+# Calculate the residuals for each Pokémon
+residuals <- resid(pokemon_lin)
+
+# Sum of residuals
+sum_of_residuals <- sum(residuals)
+
+# Display the sum of residuals
+sum_of_residuals
+
+```
+
+**The sum of all the residuals is -2.553513e-15. This makes sense because it shows that Attack and HP are not able to properly estimate whether or not a pokemon is legendary or not.**
+
+------------------------------------------------------------------------
+
+## Question 5: (2 pts)
+
+A logistic regression would be more appropriate to predict `Legendary` status since it can only take two values. Fit this new model with `Attack` and `HP`, call it `pokemon_log`, and write its equation. *Hint: the logit form is given by the R output.*
+
+```{r}
+# Fit a logistic regression model
+pokemon_log <- glm(Legendary ~ Attack + HP, data = my_pokemon, family = binomial(link = "logit"))
+
+# View summary of the model
+summary(pokemon_log)
+
+```
+
+**The equation is Legendary = -7.659078 + 0.032901 (Attack) + 0.025923 (HP).**
+
+------------------------------------------------------------------------
+
+## Question 6: (2 pts)
+
+According to this new model, is the pokemon you chose in question 3 predicted to be legendary (i.e. probability is greater than 0.5)? Why or why not? *Hint: you can use predict() with the arguments `newdata =` and `type = "response"`.*
+
+```{r}
+# Create a data frame for Alakazam's stats
+alakazam_stats <- data.frame(Attack = 55, HP = 55) 
+
+# Predict the probability of Alakazam being legendary
+prediction_probability <- predict(pokemon_log, newdata = alakazam_stats, type = "response")
+
+# Is Alakazam predicted to be legendary?
+is_predicted_legendary <- prediction_probability > 0.5
+
+# Display prediction
+is_predicted_legendary
+
+```
+
+**This model predicted that Alakazm would not be legendary.**
+
+------------------------------------------------------------------------
+
+## Question 7: (3 pts)
+
+Let's compare the performance of these two models using ROC curves. On the same plot, represent the ROC curve for predicting `Legendary` status based on the predictions from the linear regression in blue and another ROC curve based on the predictions from the logistic regression in orange.
+
+```{r}
+# Linear Regression
+linear_model <- lm(Legendary ~ Attack + HP, data = my_pokemon)
+linear_probs <- predict(linear_model, type = "response")
+
+# Logistic Regression
+logistic_model <- glm(Legendary ~ Attack + HP, data = my_pokemon, family = "binomial")
+logistic_probs <- predict(logistic_model, type = "response")
+
+# ROC curve for Linear Regression
+roc_linear <- roc(my_pokemon$Legendary, linear_probs)
+
+# ROC curve for Logistic Regression
+roc_logistic <- roc(my_pokemon$Legendary, logistic_probs)
+
+# Plot ROC curves
+plot(roc_linear, col = "blue", main = "ROC Curves", lwd = 2, cex.main = 1.5, cex.lab = 1.2)
+lines(roc_logistic, col = "orange", lwd = 2)
+legend("bottomright", legend = c("Linear Regression", "Logistic Regression"), col = c("blue", "orange"), lwd = 2)
+
+
+```
+
+How do these two models compare?
+
+**Based on the two models it apperas as though the ROC curve for the logistic regression (orange) appears to mainly be above the ROC curve for the linear regression (blue). This indicates that the logistic regression model performs better, for the most part, in terms of true positive rate versus false positive rate. We can then assume that the logistic regression model is a suitable choice for predicting Legendary status of a pokemon.**
+
+------------------------------------------------------------------------
+
+## Formatting: (2 pts)
+
+Comment your code, write full sentences, and knit your file!
+
+------------------------------------------------------------------------
+
+```{r, echo=F}
+## DO NOT DELETE THIS BLOCK!
+Sys.info()
+```
