@@ -1,0 +1,427 @@
+---
+title: "Project 2"
+author: "Andrew Manrriquez"
+date: "2023-11-29"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,  
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+# Edit the file starting below
+
+```
+
+# Predictive Modeling for Ambient Air Pollution: A Comprehensive Analysis and Policy Implications
+
+By Andrew Manrriquez and Kevin Chen
+
+## Introduction
+
+The aim of this project is to construct and compare prediction models for ambient air pollution concentrations across the continental United States. The modeling approaches chosen will be linear regression, logistic regression, K-nearest neighbors regression and decision trees regression. This report details the process of developing these models, exploring predictor variables and evaluating the models' overall performances. Predictor variables were selected based on their relevance to air pollution, including CMAQ and aod measurements. Prior to any modeling, exploratory data analysis was performed which involved correlation analysis and visualizations to understand relationships within the dataset. The primary metric for model evaluation in this report is root mean-squared error (RMSE).
+
+```{r}
+# Load necessary package
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(tidymodels)
+library(broom)
+library(kknn)
+library(rpart)
+library(rpart.plot)
+
+# Read in dataset
+dat <- read_csv("https://github.com/rdpeng/stat322E_public/raw/main/data/pm25_data.csv.gz")
+```
+
+### Exploratory Analysis
+
+```{r}
+# Checking the correlation of the predictor variables with the `value` target
+# Select only numeric columns
+numeric_columns <- dat[, sapply(dat, is.numeric)]
+
+# Calculate correlations with the target variable
+correlations <- cor(numeric_columns)
+
+# Extract the correlations with the target variable
+cor_with_target <- correlations["value", ]
+
+# Sort the correlations in descending order
+sorted_cor <- sort(cor_with_target, decreasing = TRUE)
+
+# Print the sorted correlations
+head(sorted_cor)
+
+# Creating a scatterplot to see relationship between value and pov
+plot(dat$pov, dat$value, main = "Scatterplot of pov vs Value", xlab = "pov", ylab = "Value") + abline(lm(value ~ pov, data = dat), col = "red")
+
+# Creating a scatterplot to see relationship between value and CMAQ
+plot(dat$CMAQ, dat$value, main = "Scatterplot of CMAQ vs Value", xlab = "CMAQ", ylab = "Value") + abline(lm(value ~ CMAQ, data = dat), col = "red")
+
+# Creating a scatterplot to see relationship between value and aod
+plot(dat$aod, dat$value, main = "Scatterplot of aod vs Value", xlab = "aod", ylab = "Value") + abline(lm(value ~ aod, data = dat), col = "red")
+```
+
+## Data Wrangling
+
+```{r}
+# This is for the logistic regression and creating a binary variable 1 = high aod (greater than or equal to 40) and 0 = low aod (below 40)
+dat$binary_category <- ifelse(dat$value > 10, 1, 0)
+```
+
+In order to perform our logistic regression model, we needed to create a binary variable for our response variable. The code above was used to create a binary outcome for the response variable, `value`. If `value` was greater than or equal to 10 it was reported with a value of 1. If the `value` was less than 10 it was reported with a value of 0.
+
+## Results
+
+### Building Models
+
+#### (1) Linear Regression
+
+```{r}
+## Linear regression 
+dat %>%
+        ggplot(aes(CMAQ, value)) + 
+        labs(x = "CMAQ",
+             y = "Annual Average PM2.5") + 
+        geom_smooth(method = "lm", size = 1.5, se = FALSE,
+                    color = "steelblue") + 
+        geom_point(size = 1)
+
+```
+
+The code was used to create a scatterplot of the `CMAQ` variable and the `value` variable, included in it was was a linear regression, colored blue.
+
+```{r}
+# Fit linear model with lm()
+fit <- lm(value ~ CMAQ, data = dat)
+
+summary(fit)
+```
+
+This function was used to fit a linear model for the variable `value` to the predictor variable `CMAQ`. Essentially we used the values of `CMAQ` to predict the `value`. Printing the summary of the `fit` object we see that `CMAQ` is statistically significant in predicting `value`. We also see that the R^2^ for this model was roughly 21.73%, indicating that 21.73% of the variance in the dependent variable is explained by the independent variable `value`.
+
+```{r}
+# Fitted values
+fitted_linear <-fitted(fit)
+head(fitted_linear)
+
+# Residual values
+residuals_linear <-resid(fit)
+head(residuals_linear)
+```
+
+The `fitted_linear` object gives a quick look at the predicted values based on the linear regression model. Meanwhile, the `residual_linear` object gives a quick look at the difference between the actual values and the predicted values from the linear regression model.
+
+```{r}
+# Show fitted values
+augment(fit, dat) %>%
+        ggplot(aes(x = CMAQ, y = value)) + labs(x = "CMAQ",
+             y = "Annual Average PM2.5") + 
+        geom_smooth(method = "lm", size = 1.5, se = FALSE, color = "steelblue") + 
+        geom_point(size = 2, alpha = .5, color = "sienna") + 
+        geom_point(aes(CMAQ, .fitted),
+                   size = 1)
+
+```
+
+The above scatterplot has the observed data points in orange, a blue linear regression line, and a set of black points that represent the fitted values from the linear regression model. This visualization allows us to visually determine how well the model fits, although in our case it is not easily deducible. To further investigate how well the model fits we need to create training and testing datasets.
+
+#### Creating Training and Testing Data Sets
+
+To further investigate how well our models fit we needed to create training and testing datasets. The code below is how we went about creating the two datasets and we opted to split the data 80/20.
+
+```{r}
+# Setting the seed for reproduciblity
+set.seed(123)
+
+# Creating an index to split the data into training and testing datasets (80/20 split)
+index <- createDataPartition(dat$value, p = 0.8, list = FALSE)
+
+# Creating the training dataset
+training <- dat[index, ]
+
+# Creating the testing data set
+testing <- dat[-index, ]
+
+# Setting the seed for reproduciblity
+set.seed(123)
+
+index_logistic <- createDataPartition(dat$binary_category, p = 0.8, list = FALSE)
+
+# Creating the training logistic data set
+training_data_logistic <- dat[index_logistic, ]
+
+# Creating the testing logistic data set
+testing_data_logistic <- dat[-index_logistic, ]
+```
+
+```{r}
+# Fit the linear model
+fit1 <- lm(value ~ CMAQ, data = training)
+
+# Show the fit to the training data
+training %>% 
+        mutate(model1 = fitted(fit1)) %>%
+        ggplot(aes(CMAQ, value)) + 
+        geom_line(aes(CMAQ, model1), color = "steelblue", size = 2) + 
+        geom_point(size = 2)
+
+# Show just test dataset
+testing %>%
+        ggplot(aes(CMAQ, value)) + 
+        geom_point(size = 2)
+```
+
+With the training dataset we fitted a linear regression model where the dependent variable is `value` and the independent variable is CMAQ. This model is trained on the `training` dataset. We then wanted to show the fitted values from the linear model along with the training data (which can be seen in the scatterplot with a blue line). We also provided a scatterplot that displays just the test dataset.
+
+```{r}
+# Used fitted linear model to make predictions on the testing dataset
+predict(fit1, testing)
+
+# Show augmented dataset with model predictions
+augm_testing <-testing %>%
+        mutate(pred1 = predict(fit1, testing)) %>% 
+        select(id, value, state, city, CMAQ, pred1)
+
+# View first few rows of augmented testing dataset
+head(augm_testing)
+
+# Show the testing data with model 1 predictions
+testing %>%
+        mutate(pred1 = predict(fit1, testing)) %>% 
+        ggplot(aes(x = CMAQ, y = value)) + 
+        geom_line(aes(CMAQ, pred1), color = "steelblue", size = 2) + 
+        geom_point(size = 2)
+
+# Show model performance statistics
+testing %>% 
+    mutate(pred1 = predict(fit1, testing)) %>% 
+    summarize(rmse1 = sqrt(mean((value - pred1)^2)),
+              R2_1 = 1 - (sum((value-pred1)^2)/sum((value-mean(value))^2)))
+
+# Show the training and testing data together
+training %>%
+        bind_rows(testing, .id = "dataset") %>%
+        mutate(dataset = factor(dataset, labels = c("Training", "Testing"))) %>%
+        ggplot(aes(x = CMAQ, y = value)) + 
+        geom_point(aes(color = dataset), size = 2) + 
+        labs(x = "CMAQ", y = "Average Annual PM2.5") + 
+        scale_color_discrete("Dataset")
+```
+
+With the testing dataset we fitted a linear model to make predictions on the testing dataset. We then created an augmented testing dataset that displayed the model predictions as well (the tibble above). The first graph shown above is a scatterplot of the testing data along with a line plot which represents the predictions from the linear model, allowing us to visually compare the predicted values with the actual values. This was followed by performing a model performance statstics for the testing dataset, which included the RMSE and R-squared values. For the linear regression the RMSE is roughly 2.11 and the R-squared is roughly 29.11%. Lastly, we created a scatterplot with training and testing points that helps visualize how well the model fits both datasets.
+
+#### (2) Logistic Regression
+
+```{r}
+# Training a logistic regression model using the training data
+logistic_model <- glm(binary_category ~ CMAQ, data = training_data_logistic, family = "binomial")
+logistic_model
+
+# Predictions and augmented data
+logistic_predictions <- augment(logistic_model, newdata = training_data_logistic) %>%
+  mutate(predicted = plogis(.fitted))
+
+head(logistic_predictions)
+```
+
+Based on the logistic summary we can see that the only variables that are statistically significant are `CMAQ`, `aod`, and `lon`. Due to this we are able to tell that `CMAQ`, `aod` and `lon` all have some influence on the response variable `value`.
+
+```{r}
+# Scatterplot with logistic regression line
+ggplot(logistic_predictions, aes(x = CMAQ, y = binary_category)) +
+  geom_point() +
+  geom_line(aes(x = CMAQ, y = predicted), color = "blue", size = 2, alpha = 1/2) +
+  labs(x = "CMAQ", y = "Probability of Binary Category")
+
+# Make predictions
+logistic_predictions <- predict(logistic_model, newdata = testing_data_logistic, type = "response")
+
+# Convert probabilities to binary predictions (0 or 1)
+binary_predictions <- ifelse(logistic_predictions > 0.5, 1, 0)
+
+# Evaluate accuracy
+accuracy <- sum(binary_predictions == testing_data_logistic$binary_category) / length(binary_predictions)
+cat("Accuracy:", accuracy, "\n")
+
+# Confusion matrix
+conf_matrix <- table(Predicted = binary_predictions, Actual = testing_data_logistic$binary_category)
+conf_matrix
+
+```
+
+In the code above we created a scatterplot with the logistic regression prediction model. To further analyze the performance of the logistic regression model we calculated the accuracy and created a confusion matrix. The accuracy of this model was roughly 83.43% of the predictions that the model made are accurate. Based on our confusion matrix there were 32 True Negatives, 9 False Positives, 20 False Negatives, and 114 True Positives.
+
+#### (3) K-nearest neighbors Regression
+
+```{r}
+# Normalizing data for KNN
+normalized_dat <- as.data.frame(scale(numeric_columns))
+
+# Creating a scatterplot to examine relationships
+ggplot(normalized_dat, aes(x = CMAQ, y = value)) +
+  geom_point() +
+  labs(x = "Normalized CMAQ", y = "Normalized Value")
+```
+
+For KNN, the predictor variables were normalized to ensure that they contributed equally to the distance computation. This step was crucial because KNN is sensitive to the scale of the data.Scatterplots were created to visualize the relationship between the normalized levels of the compound (CMAQ) and the target variable (value). This helped in understanding the data distribution and the initial relationship between variables.The data was split into training and testing datasets using an 80/20 partition. This approach ensures that the model can be trained on a majority of the data while having a separate, untouched dataset to evaluate its performance.
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Create training and testing datasets
+index_knn <- createDataPartition(normalized_dat$value, p = 0.8, list = FALSE)
+training_knn <- normalized_dat[index_knn, ]
+testing_knn <- normalized_dat[-index_knn, ]
+
+# KNN model fitting
+knn_fit <- train(value ~ ., data = training_knn, method = "knn", tuneLength = 10)
+
+# Best model
+best_k <- knn_fit$bestTune$k
+cat("Best k:", best_k, "\n")
+
+# Predictions on testing dataset
+predictions_knn <- predict(knn_fit, testing_knn)
+
+# Create a data frame with actual and predicted values
+results <- data.frame(Actual = testing_knn$value, Predicted = predictions_knn)
+
+# Scatter plot of Actual vs Predicted values
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Actual Value", y = "Predicted Value") +
+  ggtitle("Actual vs Predicted Values for KNN Model")
+
+
+# Evaluation metrics
+rmse_knn <- RMSE(predictions_knn, testing_knn$value)
+cat("RMSE for KNN:", rmse_knn, "\n")
+```
+
+During KNN model fitting, cross-validation with a tune length of 10 was used to find the optimal number of neighbors (best_k). This process iterates through different K values to find the one that minimizes error on the validation sets, providing a good balance between bias and variance.The primary metric used for model comparison was the Root Mean-Squared Error (RMSE). RMSE is a widely used measure of the differences between values predicted by a model and the values observed. The models were compared based on their RMSE values, with lower values indicating better predictive performance. KNN Regression: The RMSE for the KNN model was calculated to be approximately 0.8008916 at its best K performance at 9.
+
+#### (4) Decision Tree Regression
+
+```{r}
+# Visualizing decision tree relationships
+ggplot(dat, aes(x = CMAQ, y = value)) +
+  geom_point() +
+  labs(x = "CMAQ", y = "Value")
+```
+
+No normalization was required for the decision tree model, as tree-based models are invariant to the scale of the variables.An initial scatter plot was created to visualize the relationship between the compound (CMAQ) and the target variable (value). This provided an understanding of the data structure and potential relationships.The dataset was partitioned into training and testing sets with an 80/20 split, which is a standard practice in predictive modeling to validate the model's performance on unseen data.The rpart package in R was used to fit a decision tree model on the training data. Decision trees make splits that best separate the data for the prediction of the target variable.
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+#Set the Factor Levels
+dat$state <- factor(dat$state, levels = unique(dat$state))
+dat$county <- factor(dat$county, levels = unique(dat$county))
+dat$city <- factor(dat$city, levels = unique(dat$city))
+
+# Create training and testing datasets
+index_tree <- createDataPartition(dat$value, p = 0.8, list = FALSE)
+training_tree <- dat[index_tree, ]
+testing_tree <- dat[-index_tree, ]
+
+# Visualizing decision tree relationships with increased plot size
+ggplot(dat, aes(x = CMAQ, y = value)) +
+  geom_point() +
+  labs(x = "CMAQ", y = "Value") +
+  theme(plot.margin = unit(c(1,1,1,1), "cm")) 
+
+#save the plot with a larger size
+ggsave("decision_tree_relationships.png", width = 10, height = 8)
+
+# Fit decision tree model
+tree_fit <- rpart(value ~ ., data = training_tree, method = "anova")
+
+#visualize the tree
+rpart.plot(tree_fit)
+
+```
+
+```{r}
+# Make predictions on the testing dataset
+predictions <- predict(tree_fit, newdata = testing_tree)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((testing_tree$value - predictions)^2))
+cat("RMSE for Decision Tree:", rmse, "\n")
+```
+
+The performance of the decision tree regression model was evaluated based on the Root Mean-Squared Error (RMSE), which is a measure of the differences between the predicted and the observed values, which was calculated to be approximately 2.607052. This RMSE was used to compare the decision tree model's performance against the KNN model, and it was found that the decision tree had a higher RMSE, indicating that it was less accurate in predicting the values compared to the KNN model.
+
+## Discussion
+
+### Primary Questions
+
+#### Primary Question 1
+
+Our model performs well in places that have numerous monitors and it performs poorly in places that have very few monitors. We hypothesize that bigger cities have more monitors and as a result they have the ability to gather more data which leads to a better training set for the model to predict. Smaller cities may have very few monitors which may lead to not having enough data or missing data leading to poor predictions.
+
+#### Primary Question 2
+
+Variables highly correlated with the target are usually good predictors. Performance may vary across regions, Hawaii or Alaska for example, due to differing environmental, socioeconomic, or demographic factors. Time-related variables (like year, season) can affect model performance, especially in environmental studies like air pollution.
+
+#### Primary Question 3
+
+```{r}
+# Correlation coefficient using 'dat'
+correlation_cmaq <- cor(dat$CMAQ, dat$value)
+
+# Print the correlation coefficient
+print(correlation_cmaq)
+
+# Scatterplot
+plot(dat$CMAQ, dat$value,
+     main = "Scatterplot of CMAQ vs. PM2.5",
+     xlab = "CMAQ",
+     ylab = "PM2.5",
+     pch = 16,  # Set the point character
+     col = "steelblue"  # Set the point color
+)
+
+# Assuming 'dat' is your dataset
+correlation_aod <- cor(dat$aod, dat$value)
+
+# Print the correlation coefficient
+print(correlation_aod)
+
+# Scatterplot
+plot(dat$aod, dat$value,
+     main = "Scatterplot of AOD vs. PM2.5",
+     xlab = "AOD",
+     ylab = "PM2.5",
+     pch = 16,  # Set the point character
+     col = "red3"  # Set the point color
+)
+
+```
+
+The correlation between `CMAQ` and `value` is 0.47 and for `aod` and `value` it is 0.35. When `CMAQ` and `aod` are included in our model the prediction performance of our model increases and when they are not included in the model the prediction performance decreases.
+
+#### Primary Question 4
+
+Our models may not perform well in Hawaii or Alaska due to our models being trained from data in the continental United States. Hawaii and Alaska may have different geographical, meteorological, or environmental conditions. Alaska and Hawaii may have different patterns that were not present in the training dataset as well.
+
+**Reflect on the process of conducting this project. What was challenging, what have you learned from the process itself?**
+
+One of the challenges faced was managing memory and computation when creating a grid for the KNN prediction visualization. The issue of "cannot allocate vector of size" was particularly indicative of the complexities involved in handling large datasets or extensive ranges of predictor variables. The importance of cross-validation in selecting the optimal hyperparameters, like the number of neighbors (k) in KNN. It also reinforced the concept that different models have different strengths and weaknesses depending on the nature of the data.
+
+**Reflect on the performance of your final prediction model. Did it perform as well as you originally expected? If not, why do you think it didn't perform as well?**
+
+The KNN model performed as expected would depend on prior hypotheses about the data. If the expectation was that air pollution concentrations have complex, non-linear relationships with predictors, then KNN's performance might align with expectations. However, if a simple decision tree was anticipated to suffice, its higher RMSE may have been surprising. It most likely performed better because it doesn't assume any specific form of the relationship between predictors and the target variable. In contrast, decision trees can be prone to overfitting and may not capture complex relationships unless they are significantly deepened or boosted, which wasn't the case here.
+
+## Acknowledgements
+
+Both members created two prediction models and both worked together on the introduction, results, and discussion.

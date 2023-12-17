@@ -1,0 +1,364 @@
+---
+title: "Project 1 Report"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, error = FALSE,
+                      warning = FALSE, message = FALSE, 
+                      fig.align = "center",
+                      R.options = list(max.print=100))
+
+
+# Edit the file starting below
+```
+
+### group members: Kevin Chen, Andrew Manrriquez
+
+Title and Introduction:
+
+Write a narrative introduction describing the datasets you have chosen, how they were acquired
+(cite your sources), and why they are interesting to you. Describe what a unique row represents
+in the datasets (e.g., states, countries, dates, sport players, …), how you can join them (keys),
+the types of variables (numeric, categorical) they contain. Expand on potential relationships,
+trends, you may expect, if any. Write a research question (if a group project, each member
+writes a research question) that you will answer with your exploratory data analysis.
+
+
+necessary packages:
+
+```{r, warning=FALSE}
+
+#if dslabs has not been installed, remove the '#' and run the following:
+#install.packages("dslabs")
+
+library(ggplot2)
+library(tidyr)
+library(datasets)
+library(tidyverse)
+library(dslabs)
+
+```
+
+**Analysis of Socio-Economic and Crime Data Across U.S. States
+
+This project aims to explore potential relationships between various socio-economic indicators, gun violence and crime rates across U.S. states. The datasets utilized are:
+
+state.x77 from the datasets package: This dataset provides socio-economic data, including population, income, and illiteracy rates, among others, for all 50 states.
+
+USArrests from the datasets package: This dataset contains statistics, in arrests per 100,000 residents for assault, murder, and rape in each of the 50 U.S. states in 1973.
+
+murders from the dslabs package: This dataset contains death by gun murders by state for 2010
+
+
+The research question is: "How do socio-economic factors correlate with crime rates and gun violence across U.S. states?" We chose these datasets as they allow for the exploration of how socio-economic factors might correlate with crime rates, providing insight into broader societal patterns. We hypothesize that states that are higher urban populated centers expects higher crime rates across assaults, murder, and gun violence. 
+
+
+--------------------------------------------------------------------------------------------------
+
+Tidying:
+
+If the datasets are not tidy, you will need to reshape them so that every observation has its
+own row and every variable its own column.
+• Use the tidyr functions pivot_longer/gather and/or pivot_wider/spread.
+• Document the process (describe in words what was done).
+• Depending on your datasets, it might be a good idea to do this before joining or might
+be necessary after. Feel free to rearrange the sections.
+NOTE: If your datasets are already tidy, be sure to use those tidyr functions somewhere else
+in your project (   e.g., for rearranging summary statistics).
+
+```{r}
+
+# Load the data
+state.x77 <- as.data.frame(state.x77)
+USArrests <- as.data.frame(USArrests)
+murders <- as.data.frame(murders)
+
+```
+
+------------------------------------------------------------------------
+
+Joining/Merging:
+
+Join your 2+ separate data sources into a single dataset.
+• Use dplyr join functions on an ID variable (or ID variables) common to all datasets.
+• Document the process (describe in words what was done).
+• Include the number of:
+– total observations in each dataset before joining,
+– IDs that appear in one dataset but not the other,
+– IDs in common,
+– IDs that may have been left out after joining.
+• Report how many observations/rows were dropped/added when joining the datasets and
+discuss any potential issues
+
+```{r}
+# Convert row names to a column in state.x77
+state.x77 <- state.x77 %>%
+  mutate(state = row.names(state.x77))
+
+# Add a 'state' column to USArrests (assuming row names are in order)
+USArrests$state <- row.names(USArrests)
+
+# Join state.x77 and USArrests datasets based on the 'state' column
+combined_data <- left_join(state.x77, USArrests, by = "state")
+
+# Join the 'murders' dataset if available
+if (exists("murders")) {
+  combined_data <- combined_data %>%
+    left_join(murders, by = "state")
+}
+```
+
+Wrangling:
+
+Explore your data with summary tables and statistics.
+• Use all six core dplyr functions (filter, select, arrange, group_by, mutate, summarize) at
+least once in your report to manipulate your dataset.
+• Use mutate to create a variable that is a function of at least one other variable 9e.g.,
+change the scale of a numeric variable or create a categorical variable based on a numeric
+variable).
+• Compute summary statistics for at least 2 numeric variables and 1 categorical variable
+(if a group project, describe at least 3 numeric and 2 categorical variables). If you do
+not have a categorical variable, create one with mutate!
+• Discuss all findings/results. Make sure to include units for describing numeric variables.
+
+
+```{r}
+# 1. Explore the data with summary
+print(summary(combined_data))
+
+# 2. Use dplyr functions for manipulation
+# 2.1 filter() - Filter rows with high Murder rate, for example, greater than 10 per 100,000
+high_gun_murder_rates <- combined_data %>% 
+  filter(Murder.x > 10)
+
+# 2.2 select() - Select only a few relevant columns for analysis
+selected_columns <- combined_data %>% 
+  select(state, Murder.x, total, Assault, UrbanPop, Rape) 
+
+# 2.3 arrange() - Arrange the states by Murder rate
+states_by_gun_murder_rate <- combined_data %>% 
+  arrange(desc(Murder.x))
+
+# 2.4 group_by() and 2.6 summarize() - Group by a categorical variable and calculate summary statistics. 
+# Here, we create a categorical variable based on the Urban Population (UrbanPop),
+# assuming a state with UrbanPop > 65 is "Highly Urban", otherwise "Less Urban".
+
+combined_data <- combined_data %>% 
+  mutate(urban_category = ifelse(UrbanPop > 65, 'Highly Urban', 'Less Urban'))
+
+urban_summary <- combined_data %>% 
+  group_by(urban_category) %>% 
+  summarize(
+    avg_gun_murder = mean(total, na.rm = TRUE),
+    avg_murder = mean(Murder.x, na.rm = TRUE),
+    avg_assault = mean(Assault, na.rm = TRUE),
+    avg_rape = mean(Rape, na.rm = TRUE),
+    .groups = 'drop' # This prevents the creation of a grouped_df in the output
+  )
+
+# Discuss findings/results
+print("Summary Table for Urban Categories")
+print(urban_summary)
+```
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+Visualizing:
+
+Create visualizations for your data with 3 different ggplots: include a visualization with 1
+variable, another with 2 variables, and one with 3 variables (if a group project, make two plots
+of each).
+• Each plot should have a title and clean labeling for all mappings.
+• Modify the default theme and scales on the axes at least once per plot.
+• For at least one plot, use a stat function.
+• Write a supporting paragraph below each plot describing what the plot depicts and any
+relationships/trends that are apparent.
+
+Visualization with One Variable:
+```{r}
+
+# Plot 1: Histogram of Murder rates
+p1 <- ggplot(data = combined_data, aes(x = Murder.x)) +
+  geom_histogram(binwidth = 1, fill = 'blue', color = 'black') +
+  labs(title = "Distribution of Murder Rates", 
+       x = "Murder Rate (per 100,000)", 
+       y = "Number of States") +
+  theme_minimal()
+print(p1)
+
+# Supporting paragraph for Plot 1:
+# "The histogram displays the distribution of murder rates across states. Most states 
+# seem to have lower rates, as indicated by the higher frequency of states within 
+# lower murder rate bins. The tail extending to the right suggests that fewer states 
+# experience very high murder rates. Understanding the distribution can help identify 
+# outliers and inform policy decisions."
+
+# Plot 2: Density plot of Assault rates
+p2 <- ggplot(data = combined_data, aes(x = Assault)) +
+  geom_density(fill = 'red') +
+  labs(title = "Density of Assault Rates", 
+       x = "Assault Rate (per 100,000)", 
+       y = "Density") +
+  theme_light()
+print(p2)
+
+# Supporting paragraph for Plot 2:
+# "The density plot presents a continuous estimate of the distribution of assault rates 
+# among states. The shape of the plot indicates variability in rates, with a peak 
+# suggesting a common range of assault rates. The spread of the curve implies differences 
+# in how states experience violent crime, which may warrant further investigation 
+# into regional or demographic factors."
+```
+
+Visualization with Two Variables:
+```{r}
+# Plot 3: Scatterplot of Murder vs. Assault rates
+p3 <- ggplot(data = combined_data, aes(x = Murder.x, y = Assault)) +
+  geom_point(color = 'steelblue') +
+  labs(title = "Murder vs. Assault Rates", 
+       x = "Murder Rate (per 100,000)", 
+       y = "Assault Rate (per 100,000)") +
+  theme_bw() +
+  theme(panel.grid.minor = element_blank())
+print(p3)
+
+# Supporting paragraph for Plot 3:
+# "This scatterplot shows each state by its murder and assault rates, suggesting a 
+# positive correlation between the two variables. States with higher murder rates 
+# tend to also have higher assault rates. This correlation could imply that factors 
+# contributing to violence are similar for both types of crime."
+
+# Plot 4: Boxplot of UrbanPop by urban_category
+p4 <- ggplot(data = combined_data, aes(x = urban_category, y = UrbanPop, fill = urban_category)) +
+  geom_boxplot() +
+  labs(title = "Urban Population Distribution by Category", 
+       x = "Urban Category", 
+       y = "Urban Population (%)") +
+  theme_classic() +
+  scale_fill_manual(values = c('Highly Urban' = 'darkgreen', 'Less Urban' = 'orange'))
+print(p4)
+
+# Supporting paragraph for Plot 4:
+# "The boxplot categorizes states into 'Highly Urban' and 'Less Urban' based on their 
+# urban population percentages. Not surprisingly, 'Highly Urban' states have a higher 
+# median urban population percentage, as well as less variability. In contrast, 'Less 
+# Urban' states show greater diversity in urban population percentages. This difference 
+# could reflect varying degrees of urbanization and lifestyle factors between the groups."
+```
+
+Visualization with Three Variables:
+```{r}
+# Plot 5: Scatterplot of Murder vs. Assault rates, colored by urban_category
+p5 <- ggplot(data = combined_data, aes(x = Murder.x, y = Assault, color = urban_category)) +
+  geom_point() +
+  labs(title = "Murder vs. Assault Rates by Urban Category", 
+       x = "Murder Rate (per 100,000)", 
+       y = "Assault Rate (per 100,000)") +
+  theme_dark() +
+  scale_color_manual(values = c('Highly Urban' = 'red', 'Less Urban' = 'yellow'))
+print(p5)
+
+# Supporting paragraph for Plot 5:
+# "This enhanced scatterplot includes an additional dimension, using color to indicate 
+# 'Highly Urban' vs. 'Less Urban' states. It appears that 'Highly Urban' states tend to 
+# have higher rates of both murder and assault, suggesting that urbanization level 
+# could be linked to crime rates. This trend might be due to various socio-economic 
+# factors prevalent in densely populated areas."
+
+# Plot 6: Scatterplot with smoothed trend line of Murder vs. Assault rates, faceted by urban_category
+p6 <- ggplot(data = combined_data, aes(x = Murder.x, y = Assault)) +
+  geom_point(color = 'purple') +
+  geom_smooth(method = 'lm', se = FALSE) + # Adding a trend line
+  facet_wrap(~urban_category) + # Creating facets based on the urban_category
+  labs(title = "Murder vs. Assault Rates, Faceted by Urban Category", 
+       x = "Murder Rate (per 100,000)", 
+       y = "Assault Rate (per 100,000)") +
+  theme_minimal()
+print(p6)
+
+# Supporting paragraph for Plot 6:
+# "This plot provides a comparative view of the relationship between murder and assault 
+# rates within 'Highly Urban' and 'Less Urban' states. The linear trend lines suggest 
+# a positive correlation in both categories, but the slope seems steeper for 'Highly 
+# Urban' states, indicating a stronger relationship between the two crime rates. 
+# The facets allow for direct comparison between groups, highlighting the influence 
+# of urbanization on crime."
+
+```
+
+
+**Your answer goes here. Write sentences in bold.**
+
+------------------------------------------------------------------------
+
+Discussion:
+
+Putting it all together, what did you learn from your data?
+• Answer your research question(s) citing important statistics and visualizations (it is a
+good idea to number your visualizations to refer to them in this section for example).
+• Reflect on the process of conducting this project. What was challenging, what have you
+learned from the process itself?
+• Include acknowledgements for any help received (if a group project, that is where you
+report the contribution of each member: who did what).
+
+
+```{r}
+#Plot 7: Scatter plot to answer the research question: "How do socio-economic factors correlate with crime rates and gun violence across U.S. states?"
+p <- ggplot(data = combined_data, aes(x = UrbanPop, y = Murder.x, size = total)) +
+  geom_point(aes(color = Murder.x), alpha = 0.7) +
+  scale_size_continuous(name = "Total Murders") +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Relationship between Urbanization, Gun Murders, and Total Murders",
+       x = "Urban Population (%)",
+       y = "Gun-related Murders (per 100,000)",
+       caption = "Note: Point size indicates the total number of murders") +
+  theme_minimal() +
+  theme(legend.position="bottom")
+print(p)
+
+#Supporting paragraph:
+#"This plot examines the correlation between urban population percentage, gun-related murder rates, and the total number of murders across U.S. states. Each point represents a state, with the size of the point proportional to the total number of murders in that state. The color gradient from blue to red signifies the number of gun-related murders, with a redder hue indicating a higher rate.
+
+#Preliminary observations suggest a trend where states with higher urban population percentages tend to have higher gun-related murder rates, although there are several outliers. Additionally, states with larger total murders (indicated by larger point sizes) don't always correspond to higher urban populations, suggesting that other socio-economic or regulatory factors might be in play.
+
+#It's important to note that this is a simplistic view and the plot doesn't factor in other critical socio-economic variables due to data limitations. A more comprehensive analysis would require a richer dataset and possibly multivariate statistical techniques to uncover more nuanced relationships."
+```
+
+**By answering our research question "How do socio-economic factors correlate with crime rates and gun violence across U.S. states?", we learned that:** 
+
+1 . Correlation between Murder and Assault Rates:
+Visualization #3 (the scatterplot of Murder vs. Assault rates) revealed a positive correlation between murder and assault rates across states. This finding suggests that these two forms of violent crime may share common underlying factors, possibly socio-economic or cultural, that affect their prevalence. However, correlation does not imply causation, and further investigation into these shared factors is necessary.
+
+2. Impact of Urbanization:
+From Visualizations #4, #5, and #6, there's a discernible pattern indicating that states categorized as 'Highly Urban' tend to have higher rates of violent crimes (murders and assaults). This observation aligns with the common perception that densely populated areas might experience higher crime rates due to factors such as economic disparities, societal pressures, or the ease of anonymity in crowded settings. However, the degree of urbanization alone doesn't explain the full scope of crime rates, as there are 'Highly Urban' states with crime rates lower than the average of 'Less Urban' states.
+
+3. Gun Violence in Relation to Total Murders and Urbanization:
+Visualization #7 suggests a more complex relationship. While there seems to be a trend indicating that states with higher urban population percentages tend to have more gun-related murders, there are notable exceptions. Additionally, the total number of murders (gun-related and non-gun-related) doesn't always correlate with higher urban populations, hinting at other influential factors beyond urbanization.
+
+This project highlighted several key challenges and learnings:
+
+1. Data Limitations: The lack of extensive socio-economic variables constrained our analysis
+
+2. Complexity of Socio-economic Factors: The project underscored the intricate nature of socio-economic influences on crime and violence
+
+3. Data Manipulation and Visualization Skills: Utilizing data manipulation functions and crafting visualizations were crucial in distilling complex data into understandable formats
+
+4. Causation vs. Correlation: emphasizing that observed relationships in the data don't inherently imply a cause-effect dynamic
+
+In conclusion, while our visualizations and analyses hint at correlations between urbanization, crime rates, and gun violence, they also underscore a crucial reality in data science: the answers we get are only as good as the data we have. They highlight areas for further investigation and demonstrate the necessity of comprehensive, nuanced datasets for answering complex socio-economic questions.
+
+Acknowledgements of the project by Kevin Chen, who worked on the merging, visualizations, and disucssion portions of the project, and Andrew Manrriquez, who worked on research, introduction, and wrangling portions of the project**
+
+
+
+Formatting:
+
+Create the report using R Markdown, with headers for each section; include comments to
+the R code; include references (datasets, context). The final report should be no more than
+20 pages (the number of pages can vary greatly depending on the cleaning process). It is
+extremely important that you select pages when submitting on Gradescope.
+
+
